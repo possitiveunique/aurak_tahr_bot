@@ -41,7 +41,7 @@ class aurak_tahr_bot:
         print("with permissions to add members and manage join requests")
         print("")
 
-        token = input("Enter your bot token: ").strip()
+        token = os.getenv("BOT_TOKEN")
 
         if not token:
             print("Error: No token provided")
