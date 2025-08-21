@@ -43,9 +43,9 @@ class aurak_tahr_bot:
 
     token = os.getenv("BOT_TOKEN", "").strip()
 
-        if not token:
-            print("Error: No token provided")
-            return
+    if not token:
+        print("Error: No token provided")
+        return
 
 
         self.token = token
