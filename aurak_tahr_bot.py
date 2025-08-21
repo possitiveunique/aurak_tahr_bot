@@ -35,17 +35,15 @@ class aurak_tahr_bot:
 
     def start_bot(self):
         print("=== AURAK_TAHR_BOT ===")
-        print("Student Verification System")
-        print("")
+        print("Student Verification System\n")
         print("Make sure the bot is admin in your supergroup")
-        print("with permissions to add members and manage join requests")
-        print("")
-
-    token = os.getenv("BOT_TOKEN", "").strip()
-
-    if not token:
-        print("Error: No token provided")
-        return
+        print("with permissions to add members and manage join requests\n")
+    
+        token = os.getenv("BOT_TOKEN", "").strip()
+    
+        if not token:
+            print("Error: No token provided")
+            return
 
 
         self.token = token
