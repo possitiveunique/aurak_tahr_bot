@@ -41,11 +41,12 @@ class aurak_tahr_bot:
         print("with permissions to add members and manage join requests")
         print("")
 
-        token = os.getenv("BOT_TOKEN")
+       token = os.getenv("BOT_TOKEN", "").strip()
 
         if not token:
             print("Error: No token provided")
             return
+
 
         self.token = token
         self.is_running = True
