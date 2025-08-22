@@ -48,6 +48,17 @@ class aurak_tahr_bot:
                 json.dump(list(self.existing_ids), f)
         except Exception as e:
             print(f"Error saving IDs: {e}")
+            
+    def test_db_connection():
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("SELECT version();")
+            print("✅ Connected to PostgreSQL:", cur.fetchone())
+            cur.close()
+            conn.close()
+        except Exception as e:
+            print("❌ Database connection failed:", e)
 
     def start_bot(self):
         print("=== AURAK_TAHR_BOT ===")
