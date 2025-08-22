@@ -4,6 +4,27 @@ import json
 import os
 from datetime import datetime
 
+import os
+import psycopg2
+
+def test_db_connection():
+    try:
+        conn = psycopg2.connect(
+            host=os.getenv("PGHOST"),
+            dbname=os.getenv("PGDATABASE"),
+            user=os.getenv("PGUSER"),
+            password=os.getenv("PGPASSWORD"),
+            port=os.getenv("PGPORT")
+        )
+        cur = conn.cursor()
+        cur.execute("SELECT version();")
+        db_version = cur.fetchone()
+        print("✅ Connected to PostgreSQL:", db_version)
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print("❌ Database connection failed:", e)
+
 
 class aurak_tahr_bot:
     def __init__(self):
@@ -38,7 +59,8 @@ class aurak_tahr_bot:
         print("Student Verification System\n")
         print("Make sure the bot is admin in your supergroup")
         print("with permissions to add members and manage join requests\n")
-    
+        test_db_connection()
+
         token = os.getenv("BOT_TOKEN", "").strip()
     
         if not token:
