@@ -19,7 +19,7 @@ def get_db_connection():
         password=os.getenv("PGPASSWORD"),
         port=os.getenv("PGPORT") or 5432
         # If you ever see SSL errors, add: , sslmode="require"
-
+    )
 
 class aurak_tahr_bot:
     def __init__(self):
