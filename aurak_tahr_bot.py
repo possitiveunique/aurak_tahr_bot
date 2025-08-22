@@ -7,23 +7,18 @@ from datetime import datetime
 import os
 import psycopg2
 
-def test_db_connection():
-    try:
-        conn = psycopg2.connect(
-            host=os.getenv("PGHOST"),
-            dbname=os.getenv("PGDATABASE"),
-            user=os.getenv("PGUSER"),
-            password=os.getenv("PGPASSWORD"),
-            port=os.getenv("PGPORT")
-        )
-        cur = conn.cursor()
-        cur.execute("SELECT version();")
-        db_version = cur.fetchone()
-        print("✅ Connected to PostgreSQL:", db_version)
-        cur.close()
-        conn.close()
-    except Exception as e:
-        print("❌ Database connection failed:", e)
+def get_db_connection():
+    url = os.getenv("DATABASE_URL")
+    if url:  # Works if Railway gave you a single URL
+        return psycopg2.connect(url)
+
+    return psycopg2.connect(
+        host=os.getenv("PGHOST"),
+        dbname=os.getenv("PGDATABASE"),
+        user=os.getenv("PGUSER"),
+        password=os.getenv("PGPASSWORD"),
+        port=os.getenv("PGPORT") or 5432
+        # If you ever see SSL errors, add: , sslmode="require"
 
 
 class aurak_tahr_bot:
