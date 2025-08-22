@@ -9,7 +9,7 @@ class aurak_tahr_bot:
     def __init__(self):
         self.is_running = False
         self.last_update_id = 0
-        self.min_id = 5100
+        self.min_id = 4500
         self.max_id = 7700
         self.existing_ids = self.load_existing_ids()
         self.all_user_ids = self.load_all_user_ids()
