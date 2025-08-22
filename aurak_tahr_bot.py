@@ -15,6 +15,7 @@ class aurak_tahr_bot:
         self.all_user_ids = self.load_all_user_ids()
         self.pending_requests = {}
 
+    # ---------------- Load / Save ----------------
     def load_existing_ids(self):
         try:
             if os.path.exists("existing_ids.json"):
@@ -47,44 +48,30 @@ class aurak_tahr_bot:
         except Exception as e:
             print(f"Error saving all user IDs: {e}")
 
+    # ---------------- Bot Startup ----------------
     def start_bot(self):
-        while True:
-            try:
-                self._start_bot()
-            except Exception as e:
-                print("⚠️ Bot crashed! Restarting in 5 seconds...")
-                traceback.print_exc()
-                time.sleep(5)
-
-    def _start_bot(self):
-        print("=== AURAK_TAHR_BOT ===")
-        print("Student Verification System\n")
-        print("Make sure the bot is admin in your supergroup with permissions to add members and manage join requests\n")
-
         self.token = os.getenv("BOT_TOKEN", "").strip()
-        if not self.token:
-            print("⚠️ BOT_TOKEN not found. Waiting for token...")
-            while not self.token:
-                self.token = os.getenv("BOT_TOKEN", "").strip()
-                time.sleep(10)
+        while not self.token:
+            print("[heartbeat] Waiting for BOT_TOKEN...")
+            self.token = os.getenv("BOT_TOKEN", "").strip()
+            time.sleep(10)
 
         self.is_running = True
-        print("Connecting to Telegram...")
+
+        # Try to connect to Telegram until successful
         while not self.get_bot_info():
-            print("⚠️ Could not connect to Telegram. Retrying in 10 seconds...")
+            print("[heartbeat] Cannot connect to Telegram, retrying in 10 seconds...")
             time.sleep(10)
 
         print("\n✓ Bot is running and ready to handle join requests!")
         print("Existing student IDs:", ", ".join(str(id) for id in sorted(self.existing_ids)))
-        print("Press Ctrl+C to stop the bot\n")
 
         try:
             self.poll_updates()
-        except KeyboardInterrupt:
-            print("\nBot stopped by user")
-        finally:
-            self.save_existing_ids()
-            self.save_all_user_ids()
+        except Exception as e:
+            print(f"⚠️ Polling crashed: {e}")
+            traceback.print_exc()
+            time.sleep(5)
 
     # ---------------- Telegram API Helpers ----------------
     def get_bot_info(self):
@@ -201,7 +188,7 @@ class aurak_tahr_bot:
                 params = {
                     "timeout": 30,
                     "offset": self.last_update_id + 1,
-                    "allowed_updates": ["chat_join_request","message"]
+                    "allowed_updates": ["chat_join_request", "message"]
                 }
                 response = requests.get(url, params=params, timeout=35)
                 data = response.json()
@@ -212,17 +199,31 @@ class aurak_tahr_bot:
                             self.process_join_request(update)
                         if "message" in update and "text" in update["message"]:
                             self.process_student_id(update)
+                else:
+                    print("[heartbeat] No new updates.")
             except requests.exceptions.Timeout:
                 continue
             except requests.exceptions.ConnectionError:
-                print("Connection error. Retrying in 5 seconds...")
+                print("[heartbeat] Connection error. Retrying in 5 seconds...")
                 time.sleep(5)
             except Exception as e:
-                print(f"Error in polling: {str(e)}")
+                print(f"[heartbeat] Error in polling: {e}")
                 traceback.print_exc()
                 time.sleep(5)
+            time.sleep(1)  # Prevents CPU overload
 
 
+# ---------------- Main Entry ----------------
 if __name__ == "__main__":
-    bot = aurak_tahr_bot()
-    bot.start_bot()
+    while True:
+        try:
+            bot = aurak_tahr_bot()
+            bot.start_bot()
+        except Exception as e:
+            print(f"[heartbeat] Bot crashed: {e}")
+            traceback.print_exc()
+            print("[heartbeat] Restarting bot in 5 seconds...")
+            time.sleep(5)
+        except KeyboardInterrupt:
+            print("[heartbeat] KeyboardInterrupt caught. Ignoring on Railway...")
+            time.sleep(5)
