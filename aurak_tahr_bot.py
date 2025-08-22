@@ -3,6 +3,7 @@ import time
 import json
 import os
 from datetime import datetime
+import traceback
 
 class aurak_tahr_bot:
     def __init__(self):
@@ -11,10 +12,9 @@ class aurak_tahr_bot:
         self.min_id = 5100
         self.max_id = 7700
         self.existing_ids = self.load_existing_ids()
-        self.all_user_ids = self.load_all_user_ids()  # Persistent all-time user IDs
+        self.all_user_ids = self.load_all_user_ids()
         self.pending_requests = {}
 
-    # ---------------- Existing student IDs ----------------
     def load_existing_ids(self):
         try:
             if os.path.exists("existing_ids.json"):
@@ -31,7 +31,6 @@ class aurak_tahr_bot:
         except Exception as e:
             print(f"Error saving IDs: {e}")
 
-    # ---------------- Persistent all-time user IDs ----------------
     def load_all_user_ids(self):
         try:
             if os.path.exists("all_user_ids.json"):
@@ -48,26 +47,32 @@ class aurak_tahr_bot:
         except Exception as e:
             print(f"Error saving all user IDs: {e}")
 
-    # ---------------- Bot Startup ----------------
     def start_bot(self):
+        while True:
+            try:
+                self._start_bot()
+            except Exception as e:
+                print("⚠️ Bot crashed! Restarting in 5 seconds...")
+                traceback.print_exc()
+                time.sleep(5)
+
+    def _start_bot(self):
         print("=== AURAK_TAHR_BOT ===")
         print("Student Verification System\n")
         print("Make sure the bot is admin in your supergroup with permissions to add members and manage join requests\n")
 
         self.token = os.getenv("BOT_TOKEN", "").strip()
         if not self.token:
-            print("⚠️ BOT_TOKEN not found in environment variables. Container will keep running, waiting for token.")
-            while True:
-                time.sleep(60)
-            return
+            print("⚠️ BOT_TOKEN not found. Waiting for token...")
+            while not self.token:
+                self.token = os.getenv("BOT_TOKEN", "").strip()
+                time.sleep(10)
 
         self.is_running = True
         print("Connecting to Telegram...")
-        if not self.get_bot_info():
-            print("⚠️ Could not connect to Telegram. Bot will retry in 10 seconds...")
-            while True:
-                time.sleep(10)
-            return
+        while not self.get_bot_info():
+            print("⚠️ Could not connect to Telegram. Retrying in 10 seconds...")
+            time.sleep(10)
 
         print("\n✓ Bot is running and ready to handle join requests!")
         print("Existing student IDs:", ", ".join(str(id) for id in sorted(self.existing_ids)))
@@ -79,7 +84,7 @@ class aurak_tahr_bot:
             print("\nBot stopped by user")
         finally:
             self.save_existing_ids()
-            self.save_all_user_ids()  # Save all-time user IDs
+            self.save_all_user_ids()
 
     # ---------------- Telegram API Helpers ----------------
     def get_bot_info(self):
@@ -140,7 +145,7 @@ class aurak_tahr_bot:
         print(f"[{timestamp}] 📨 Join request from {user_name} (@{username})")
 
         self.pending_requests[user_id] = chat_id
-        self.all_user_ids.add(user_id)  # Save user ID persistently
+        self.all_user_ids.add(user_id)
         self.save_all_user_ids()
 
         message = f"👋 Welcome, {user_name}!\nTo join the group, please verify your student status.\nPlease send me the <b>last 4 digits</b> of your student ID."
@@ -155,7 +160,6 @@ class aurak_tahr_bot:
         user_id = message["from"]["id"]
         text = message.get("text", "").strip()
 
-        # Track user IDs even if they just send a message
         self.all_user_ids.add(user_id)
         self.save_all_user_ids()
 
@@ -215,6 +219,7 @@ class aurak_tahr_bot:
                 time.sleep(5)
             except Exception as e:
                 print(f"Error in polling: {str(e)}")
+                traceback.print_exc()
                 time.sleep(5)
 
 
