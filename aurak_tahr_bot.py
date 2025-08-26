@@ -14,6 +14,7 @@ class aurak_tahr_bot:
         self.existing_ids = self.load_existing_ids()
         self.all_user_ids = self.load_all_user_ids()
         self.pending_requests = {}
+        self.awaiting_ack = {}  # track users waiting to acknowledge rules
 
     # ---------------- Load / Save ----------------
     def load_existing_ids(self):
@@ -54,14 +55,14 @@ class aurak_tahr_bot:
         while not self.token:
             print("[heartbeat] Waiting for BOT_TOKEN...")
             self.token = os.getenv("BOT_TOKEN", "").strip()
-            time.sleep(10)
+            time.sleep(120)  # heartbeat every 2 mins
 
         self.is_running = True
 
         # Try to connect to Telegram until successful
         while not self.get_bot_info():
-            print("[heartbeat] Cannot connect to Telegram, retrying in 10 seconds...")
-            time.sleep(10)
+            print("[heartbeat] Cannot connect to Telegram, retrying in 2 minutes...")
+            time.sleep(120)
 
         print("\n✓ Bot is running and ready to handle join requests!")
         print("Existing student IDs:", ", ".join(str(id) for id in sorted(self.existing_ids)))
@@ -145,10 +146,22 @@ class aurak_tahr_bot:
             return
         message = update["message"]
         user_id = message["from"]["id"]
-        text = message.get("text", "").strip()
+        text = message.get("text", "").strip().lower()
 
         self.all_user_ids.add(user_id)
         self.save_all_user_ids()
+
+        # --- If awaiting acknowledgment ---
+        if user_id in self.awaiting_ack:
+            if text == "yes":
+                chat_id = self.pending_requests[user_id]
+                self.send_message(user_id, "✅ Thank you! You are now approved to join the AURAK Community.")
+                self.approve_join_request(chat_id, user_id)
+                del self.pending_requests[user_id]
+                del self.awaiting_ack[user_id]
+            else:
+                self.send_message(user_id, "❌ You must reply <b>yes</b> to acknowledge the rules.")
+            return
 
         if user_id not in self.pending_requests:
             return
@@ -175,13 +188,41 @@ class aurak_tahr_bot:
 
         self.existing_ids.add(student_id)
         self.save_existing_ids()
-        self.send_message(user_id, "✅ <b>Verification successful!</b>\nYou have been approved to join the group.")
-        self.approve_join_request(chat_id, user_id)
-        del self.pending_requests[user_id]
-        print(f"[{timestamp}] ✓ {user_name} verified with ID {student_id}")
+
+        # --- Send rules instead of approving immediately ---
+        rules_text = (
+            "📜 <b>The rules for AURAK Community are:</b>\n\n"
+            "Welcome, AURAK students! This supergroup is your official platform for university community life, "
+            "managed by your Student Government Association (SGA). To ensure a respectful, helpful, and safe environment "
+            "for everyone, please adhere to the following rules.\n\n"
+            "1. <b>Respect and Etiquette</b>\n"
+            "• Respect all the Laws of the UAE, rules of the University, and the guidelines of this community.\n"
+            "• Be Respectful: Treat all members with courtesy and kindness. Debate is welcome; personal attacks, harassment, bullying, or hate speech are strictly forbidden.\n"
+            "• No Discrimination: Racist, sexist, homophobic, or otherwise discriminatory language will not be tolerated.\n"
+            "• Respect Privacy: Do not share anyone's personal information without their consent.\n"
+            "• Cooperate with admins and follow their instructions.\n\n"
+            "2. <b>Identity and Spam</b>\n"
+            "• No Spamming or flooding the chat.\n"
+            "• No unsolicited advertising without admin permission.\n\n"
+            "3. <b>Content Guidelines</b>\n"
+            "• Keep it Safe For Work.\n"
+            "• No NSFW, pornographic, violent, or illegal content.\n"
+            "• Avoid sensitive topics like politics and religion here.\n\n"
+            "4. <b>Academic Integrity</b>\n"
+            "• Collaboration is encouraged, but cheating or plagiarism is strictly prohibited.\n\n"
+            "5. <b>Reporting Issues</b>\n"
+            "• If you see a post that breaks the rules, use /report or message an admin privately.\n\n"
+            "6. <b>Online Safety</b>\n"
+            "• Be cautious with files, links, and personal information.\n\n"
+            "➡️ Please reply <b>yes</b> to acknowledge the rules and complete your verification."
+        )
+        self.send_message(user_id, rules_text)
+        self.awaiting_ack[user_id] = True
+        print(f"[{timestamp}] ✓ {user_name} verified ID {student_id}, awaiting rules acknowledgment.")
 
     # ---------------- Polling Loop ----------------
     def poll_updates(self):
+        last_heartbeat = time.time()
         while self.is_running:
             try:
                 url = f"https://api.telegram.org/bot{self.token}/getUpdates"
@@ -199,18 +240,20 @@ class aurak_tahr_bot:
                             self.process_join_request(update)
                         if "message" in update and "text" in update["message"]:
                             self.process_student_id(update)
-                else:
-                    print("[heartbeat] No new updates.")
+                # heartbeat every 2 minutes
+                if time.time() - last_heartbeat >= 120:
+                    print("[heartbeat] Bot is alive and polling...")
+                    last_heartbeat = time.time()
             except requests.exceptions.Timeout:
                 continue
             except requests.exceptions.ConnectionError:
-                print("[heartbeat] Connection error. Retrying in 5 seconds...")
-                time.sleep(5)
+                print("[heartbeat] Connection error. Retrying in 2 minutes...")
+                time.sleep(120)
             except Exception as e:
                 print(f"[heartbeat] Error in polling: {e}")
                 traceback.print_exc()
                 time.sleep(5)
-            time.sleep(1)  # Prevents CPU overload
+            time.sleep(1)
 
 
 # ---------------- Main Entry ----------------
@@ -222,8 +265,8 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"[heartbeat] Bot crashed: {e}")
             traceback.print_exc()
-            print("[heartbeat] Restarting bot in 5 seconds...")
-            time.sleep(5)
+            print("[heartbeat] Restarting bot in 2 minutes...")
+            time.sleep(120)
         except KeyboardInterrupt:
             print("[heartbeat] KeyboardInterrupt caught. Ignoring on Railway...")
-            time.sleep(5)
+            time.sleep(120)
